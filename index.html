@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="간편하고 효율적인 할일 관리 앱">
+    <meta name="theme-color" content="#FF6B00">
+    <title>To-Do List</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #FF6B00;
+            --primary-dark: #E84C1B;
+            --bg-main: #FFFFFF;
+            --bg-secondary: #F8F9FA;
+            --bg-card: #FFFFFF;
+            --text-primary: #212529;
+            --text-secondary: #6C757D;
+            --border: #DEE2E6;
+            --success: #28A745;
+            --danger: #DC3545;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+            --radius: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 다크모드 수동 설정 */
+        body.dark-mode {
+            --bg-main: #1A1D23;
+            --bg-secondary: #2C3038;
+            --bg-card: #25282F;
+            --text-primary: #E8EAED;
+            --text-secondary: #9AA0A6;
+            --border: #3C4043;
+        }
+
+        /* 다크모드 자동 지원 (시스템 설정) */
+        @media (prefers-color-scheme: dark) {
+            body:not(.light-mode) {
+                --bg-main: #1A1D23;
+                --bg-secondary: #2C3038;
+                --bg-card: #25282F;
+                --text-primary: #E8EAED;
+                --text-secondary: #9AA0A6;
+                --border: #3C4043;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 16px) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 16px);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: clamp(20px, 5vh, 60px);
+            transition: var(--transition);
+        }
+
+        .container {
+            background: var(--bg-card);
+            border-radius: clamp(12px, 3vw, 20px);
+            box-shadow: var(--shadow-lg);
+            max-width: 680px;
+            width: 100%;
+            overflow: hidden;
+            margin: 0 auto;
+            transition: var(--transition);
+        }
+
+        /* 모바일: 전체 화면 */
+        @media (max-width: 768px) {
+            body {
+                padding: 8px;
+                padding-top: 8px;
+                align-items: stretch;
+            }
+            
+            .container {
+                min-height: calc(100vh - 16px);
+                border-radius: 16px;
+                display: flex;
+                flex-direction: column;
+            }
+        }
+
+        /* 데스크톱: 카드 형태 */
+        @media (min-width: 769px) {
+            .container {
+                max-height: 85vh;
+                display: flex;
+                flex-direction: column;
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: clamp(20px, 4vw, 30px);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: headerGlow 15s ease-in-out infinite;
+        }
+
+        @keyframes headerGlow {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(-10%, -10%); }
+        }
+
+        /* 프로필 이미지 */
+        .profile-image {
+            position: absolute;
+            top: clamp(16px, 3vw, 24px);
+            left: clamp(16px, 3vw, 24px);
+            width: clamp(70px, 12vw, 100px);
+            height: clamp(70px, 12vw, 100px);
+            border-radius: 50%;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            object-fit: cover;
+            z-index: 2;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .profile-image:hover {
+            transform: scale(1.05);
+            border-color: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (max-width: 480px) {
+            .profile-image {
+                width: 60px;
+                height: 60px;
+                top: 12px;
+                left: 12px;
+            }
+        }
+
+        .header h1 {
+            font-size: clamp(24px, 5vw, 32px);
+            font-weight: 700;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .header .subtitle {
+            opacity: 0.95;
+            font-size: clamp(12px, 2.5vw, 14px);
+            position: relative;
+            z-index: 1;
+            font-weight: 400;
+            margin-bottom: 12px;
+        }
+
+        /* 날짜/시간 정보 */
+        .datetime-info {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: clamp(13px, 2.5vw, 15px);
+            font-weight: 500;
+            opacity: 0.9;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: inline-flex;
+            margin: 0 auto;
+        }
+
+        .datetime-info .date {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .datetime-info .time {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding-left: 8px;
+            border-left: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .datetime-info .icon {
+            font-size: clamp(14px, 2.8vw, 16px);
+        }
+
+        /* 다크모드 토글 버튼 */
+        .theme-toggle {
+            position: absolute;
+            top: clamp(16px, 3vw, 20px);
+            right: clamp(16px, 3vw, 24px);
+            width: clamp(40px, 8vw, 48px);
+            height: clamp(40px, 8vw, 48px);
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(20px, 4vw, 24px);
+            transition: var(--transition);
+            z-index: 2;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1) rotate(15deg);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .theme-toggle:active {
+            transform: scale(0.95) rotate(-15deg);
+        }
+
+        /* 모바일: 헤더 축소 */
+        @media (max-width: 768px) {
+            .header {
+                padding: 24px 20px;
+            }
+        }
+
+        .input-section {
+            padding: clamp(16px, 3vw, 24px);
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: clamp(8px, 2vw, 12px);
+            align-items: stretch;
+        }
+
+        #todoInput {
+            flex: 1;
+            padding: clamp(12px, 2.5vw, 16px) clamp(14px, 3vw, 18px);
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            font-size: clamp(14px, 2.5vw, 15px);
+            transition: var(--transition);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+
+        #todoInput:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.1);
+            transform: translateY(-1px);
+        }
+
+        #todoInput::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.7;
+        }
+
+        #addBtn {
+            padding: 0 clamp(20px, 4vw, 32px);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            font-size: clamp(14px, 2.5vw, 15px);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+            min-width: fit-content;
+            box-shadow: var(--shadow-sm);
+        }
+
+        #addBtn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        #addBtn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        #addBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 모바일: 버튼 크기 조정 */
+        @media (max-width: 480px) {
+            #addBtn {
+                padding: 0 16px;
+                font-size: 14px;
+            }
+        }
+
+        .filter-section {
+            padding: clamp(12px, 2.5vw, 16px) clamp(16px, 3vw, 24px);
+            display: flex;
+            gap: clamp(8px, 2vw, 12px);
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: clamp(10px, 2vw, 12px);
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: calc(var(--radius) - 2px);
+            cursor: pointer;
+            font-size: clamp(13px, 2.3vw, 14px);
+            font-weight: 500;
+            transition: var(--transition);
+            color: var(--text-secondary);
+            font-family: inherit;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .filter-btn:hover:not(.active) {
+            border-color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        .filter-btn:active {
+            transform: scale(0.98);
+        }
+
+        @media (max-width: 360px) {
+            .filter-section {
+                gap: 6px;
+            }
+            .filter-btn {
+                min-width: 70px;
+                padding: 8px 6px;
+                font-size: 12px;
+            }
+        }
+
+        .stats {
+            padding: clamp(12px, 2.5vw, 16px) clamp(16px, 3vw, 24px);
+            background: var(--bg-secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: clamp(12px, 2.2vw, 13px);
+            color: var(--text-secondary);
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .stats span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stats strong {
+            color: var(--primary);
+            font-size: clamp(14px, 2.5vw, 16px);
+            font-weight: 700;
+        }
+
+        @media (max-width: 480px) {
+            .stats {
+                justify-content: center;
+                gap: 16px;
+            }
+        }
+
+        .todo-list {
+            padding: clamp(8px, 2vw, 12px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            flex: 1;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* 모바일: 유연한 높이 */
+        @media (max-width: 768px) {
+            .todo-list {
+                min-height: 200px;
+                max-height: calc(100vh - 400px);
+            }
+        }
+
+        /* 데스크톱: 고정 높이 */
+        @media (min-width: 769px) {
+            .todo-list {
+                max-height: 400px;
+            }
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(10px, 2.5vw, 14px);
+            padding: clamp(12px, 2.5vw, 16px) clamp(14px, 3vw, 18px);
+            margin: clamp(6px, 1.5vw, 8px) 0;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            transition: var(--transition);
+            animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .todo-item:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-sm);
+            transform: translateX(4px);
+        }
+
+        .todo-item:active {
+            transform: scale(0.98);
+        }
+
+        .todo-item.completed {
+            background: var(--bg-secondary);
+            opacity: 0.7;
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            color: var(--text-secondary);
+        }
+
+        .checkbox {
+            width: clamp(20px, 4vw, 24px);
+            height: clamp(20px, 4vw, 24px);
+            border: 2px solid var(--border);
+            border-radius: calc(var(--radius) / 2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            flex-shrink: 0;
+            touch-action: manipulation;
+        }
+
+        .checkbox:hover {
+            border-color: var(--primary);
+            transform: scale(1.1);
+        }
+
+        .checkbox:active {
+            transform: scale(0.95);
+        }
+
+        .checkbox.checked {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .checkbox.checked::after {
+            content: '✓';
+            color: white;
+            font-size: clamp(14px, 3vw, 16px);
+            font-weight: bold;
+        }
+
+        .todo-text {
+            flex: 1;
+            color: var(--text-primary);
+            font-size: clamp(14px, 2.5vw, 15px);
+            line-height: 1.5;
+            word-break: break-word;
+            min-width: 0;
+        }
+
+        .delete-btn {
+            padding: clamp(6px, 1.5vw, 8px) clamp(12px, 2.5vw, 16px);
+            background: transparent;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            border-radius: calc(var(--radius) - 2px);
+            cursor: pointer;
+            font-size: clamp(12px, 2.2vw, 13px);
+            transition: var(--transition);
+            flex-shrink: 0;
+            font-weight: 500;
+            font-family: inherit;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .delete-btn:hover {
+            background: var(--danger);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .delete-btn:active {
+            transform: scale(0.95);
+        }
+
+        @media (max-width: 480px) {
+            .todo-item {
+                padding: 12px 14px;
+            }
+            .delete-btn {
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+        }
+
+        .empty-state {
+            padding: clamp(40px, 8vw, 60px) clamp(20px, 4vw, 30px);
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: clamp(40px, 8vw, 60px);
+            margin-bottom: clamp(12px, 2.5vw, 16px);
+            opacity: 0.4;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .empty-state-text {
+            font-size: clamp(14px, 2.5vw, 15px);
+            line-height: 1.6;
+        }
+
+        .network-status {
+            padding: clamp(10px, 2vw, 12px) clamp(16px, 3vw, 24px);
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            font-size: clamp(11px, 2vw, 12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: var(--transition);
+        }
+
+        .network-status.online {
+            background: #F0FDF4;
+            color: #15803d;
+        }
+
+        .network-status.offline {
+            background: #FEF2F2;
+            color: #dc2626;
+        }
+
+        /* 다크모드에서 네트워크 상태 색상 */
+        body.dark-mode .network-status.online {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+        }
+
+        body.dark-mode .network-status.offline {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+        }
+
+        /* 시스템 다크모드 */
+        @media (prefers-color-scheme: dark) {
+            body:not(.light-mode) .network-status.online {
+                background: rgba(34, 197, 94, 0.15);
+                color: #4ade80;
+            }
+
+            body:not(.light-mode) .network-status.offline {
+                background: rgba(239, 68, 68, 0.15);
+                color: #f87171;
+            }
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: clamp(6px, 1.5vw, 8px);
+            height: clamp(6px, 1.5vw, 8px);
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-indicator.online {
+            background: var(--success);
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .status-indicator.offline {
+            background: var(--danger);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        /* 스크롤바 스타일 - 웹킷 브라우저 */
+        .todo-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .todo-list::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .todo-list::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 4px;
+            transition: var(--transition);
+        }
+
+        .todo-list::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-dark);
+        }
+
+        /* Firefox 스크롤바 */
+        .todo-list {
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary) var(--bg-secondary);
+        }
+
+        /* 로딩 인디케이터 */
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid white;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 접근성 개선 */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            padding: 0;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+
+        /* 터치 디바이스 최적화 */
+        @media (hover: none) and (pointer: coarse) {
+            .todo-item,
+            .checkbox,
+            .delete-btn,
+            .filter-btn,
+            #addBtn {
+                min-height: 44px;
+            }
+            
+            .checkbox {
+                min-width: 44px;
+            }
+        }
+
+        /* 프린트 스타일 */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .container {
+                box-shadow: none;
+                max-height: none;
+            }
+            
+            .header,
+            .input-section,
+            .filter-section,
+            .network-status,
+            .delete-btn {
+                display: none;
+            }
+            
+            .todo-list {
+                max-height: none;
+            }
+        }
+
+        /* 배지 스타일 */
+        .badge {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 2px 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .filter-btn.active .badge {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 토스트 알림 스타일 */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: var(--text-primary);
+            color: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            animation: slideInUp 0.3s ease-out;
+            font-size: 14px;
+            max-width: 300px;
+        }
+
+        .toast.success {
+            background: var(--success);
+            color: white;
+        }
+
+        .toast.error {
+            background: var(--danger);
+            color: white;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .toast {
+                bottom: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" role="main">
+        <!-- 헤더 -->
+        <header class="header">
+            <!-- 프로필 이미지 -->
+            <img 
+                src="profile.png"
+                alt="프로필 사진"
+                class="profile-image"
+                id="profileImage"
+            >
+            
+            <button 
+                class="theme-toggle" 
+                id="themeToggle"
+                aria-label="다크모드 토글"
+                title="테마 전환"
+            >
+                <span id="themeIcon">🌙</span>
+            </button>
+            <h1>To-Do List</h1>
+            <p class="subtitle">오늘도 생산적인 하루 되세요! ✨</p>
+            <div class="datetime-info">
+                <div class="date">
+                    <span class="icon">📅</span>
+                    <span id="currentDate">2024년 1월 9일 금요일</span>
+                </div>
+                <div class="time">
+                    <span class="icon">🕐</span>
+                    <span id="currentTime">00:00:00</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 입력 섹션 -->
+        <section class="input-section">
+            <form class="input-wrapper" onsubmit="return false;">
+                <label for="todoInput" class="visually-hidden">새 할일 입력</label>
+                <input 
+                    type="text" 
+                    id="todoInput" 
+                    placeholder="오늘 할 일을 입력하세요..."
+                    autocomplete="off"
+                    aria-label="새 할일 입력"
+                    maxlength="200"
+                >
+                <button 
+                    id="addBtn" 
+                    type="submit"
+                    aria-label="할일 추가"
+                >
+                    <span id="addBtnText">추가</span>
+                </button>
+            </form>
+        </section>
+
+        <!-- 필터 버튼 -->
+        <nav class="filter-section" role="navigation" aria-label="할일 필터">
+            <button 
+                class="filter-btn active" 
+                data-filter="all"
+                aria-label="전체 할일 보기"
+            >
+                전체 <span class="badge" id="badgeAll">0</span>
+            </button>
+            <button 
+                class="filter-btn" 
+                data-filter="active"
+                aria-label="활성 할일 보기"
+            >
+                진행중 <span class="badge" id="badgeActive">0</span>
+            </button>
+            <button 
+                class="filter-btn" 
+                data-filter="completed"
+                aria-label="완료된 할일 보기"
+            >
+                완료 <span class="badge" id="badgeCompleted">0</span>
+            </button>
+        </nav>
+
+        <!-- 통계 -->
+        <div class="stats" role="status" aria-live="polite">
+            <span>전체 <strong id="totalCount">0</strong></span>
+            <span>진행중 <strong id="activeCount">0</strong></span>
+            <span>완료 <strong id="completedCount">0</strong></span>
+        </div>
+
+        <!-- 할일 목록 -->
+        <section 
+            class="todo-list" 
+            id="todoList"
+            role="region"
+            aria-label="할일 목록"
+        >
+            <div class="empty-state">
+                <div class="empty-state-icon" aria-hidden="true">📝</div>
+                <p class="empty-state-text">할일을 추가해보세요!</p>
+            </div>
+        </section>
+
+        <!-- 네트워크 상태 -->
+        <footer 
+            class="network-status online" 
+            id="networkStatus"
+            role="status"
+            aria-live="polite"
+        >
+            <span class="status-indicator online" aria-hidden="true"></span>
+            <span id="networkText">온라인</span>
+        </footer>
+    </div>
+
+    <script>
+        'use strict';
+        
+        // 할일 관리 클래스 (최적화 및 리팩토링)
+        class TodoApp {
+            constructor() {
+                // 상태 관리
+                this.todos = this.loadFromStorage();
+                this.currentFilter = 'all';
+                this.saveTimeout = null; // 디바운싱용
+                this.darkMode = this.loadThemePreference(); // 다크모드 설정
+                
+                // DOM 캐싱
+                this.elements = {
+                    input: document.getElementById('todoInput'),
+                    addBtn: document.getElementById('addBtn'),
+                    addBtnText: document.getElementById('addBtnText'),
+                    todoList: document.getElementById('todoList'),
+                    filterBtns: document.querySelectorAll('.filter-btn'),
+                    networkStatus: document.getElementById('networkStatus'),
+                    networkText: document.getElementById('networkText'),
+                    totalCount: document.getElementById('totalCount'),
+                    activeCount: document.getElementById('activeCount'),
+                    completedCount: document.getElementById('completedCount'),
+                    badgeAll: document.getElementById('badgeAll'),
+                    badgeActive: document.getElementById('badgeActive'),
+                    badgeCompleted: document.getElementById('badgeCompleted'),
+                    themeToggle: document.getElementById('themeToggle'),
+                    themeIcon: document.getElementById('themeIcon'),
+                    currentDate: document.getElementById('currentDate'),
+                    currentTime: document.getElementById('currentTime'),
+                    profileImage: document.getElementById('profileImage')
+                };
+                
+                this.init();
+            }
+
+            // 초기화
+            init() {
+                this.initTheme();
+                this.initEventListeners();
+                this.initNetworkMonitoring();
+                this.initServiceWorker();
+                this.updateDateTime(); // 날짜/시간 초기화
+                this.startClock(); // 시계 시작
+                this.render();
+                this.elements.input.focus();
+            }
+
+            // 날짜/시간 업데이트
+            updateDateTime() {
+                const now = new Date();
+                
+                // 날짜 포맷
+                const year = now.getFullYear();
+                const month = now.getMonth() + 1;
+                const date = now.getDate();
+                const days = ['일', '월', '화', '수', '목', '금', '토'];
+                const dayOfWeek = days[now.getDay()];
+                
+                this.elements.currentDate.textContent = `${year}년 ${month}월 ${date}일 ${dayOfWeek}요일`;
+                
+                // 시간 포맷 (HH:MM:SS)
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+                
+                this.elements.currentTime.textContent = `${hours}:${minutes}:${seconds}`;
+            }
+
+            // 시계 시작 (1초마다 업데이트)
+            startClock() {
+                setInterval(() => {
+                    this.updateDateTime();
+                }, 1000);
+            }
+
+            // 로컬 스토리지에서 데이터 로드 (에러 처리 강화)
+            loadFromStorage() {
+                try {
+                    const stored = localStorage.getItem('smart-todos');
+                    if (!stored) return [];
+                    
+                    const todos = JSON.parse(stored);
+                    return Array.isArray(todos) ? todos : [];
+                } catch (error) {
+                    console.error('데이터 로드 실패:', error);
+                    return [];
+                }
+            }
+
+            // 테마 설정 로드
+            loadThemePreference() {
+                try {
+                    const saved = localStorage.getItem('theme-preference');
+                    if (saved === 'dark' || saved === 'light') {
+                        return saved;
+                    }
+                    // 시스템 설정 따르기
+                    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                } catch (error) {
+                    return 'light';
+                }
+            }
+
+            // 테마 설정 저장
+            saveThemePreference(theme) {
+                try {
+                    localStorage.setItem('theme-preference', theme);
+                } catch (error) {
+                    console.error('테마 설정 저장 실패:', error);
+                }
+            }
+
+            // 테마 초기화
+            initTheme() {
+                this.applyTheme(this.darkMode);
+            }
+
+            // 테마 적용
+            applyTheme(theme) {
+                if (theme === 'dark') {
+                    document.body.classList.add('dark-mode');
+                    document.body.classList.remove('light-mode');
+                    this.elements.themeIcon.textContent = '☀️';
+                } else {
+                    document.body.classList.add('light-mode');
+                    document.body.classList.remove('dark-mode');
+                    this.elements.themeIcon.textContent = '🌙';
+                }
+            }
+
+            // 테마 토글
+            toggleTheme() {
+                this.darkMode = this.darkMode === 'dark' ? 'light' : 'dark';
+                this.applyTheme(this.darkMode);
+                this.saveThemePreference(this.darkMode);
+                
+                const message = this.darkMode === 'dark' ? '다크 모드 활성화' : '라이트 모드 활성화';
+                this.showToast(message, 'success');
+            }
+
+            // 로컬 스토리지에 데이터 저장 (디바운싱)
+            saveToStorage() {
+                // 기존 타이머 제거
+                if (this.saveTimeout) {
+                    clearTimeout(this.saveTimeout);
+                }
+                
+                // 300ms 후에 저장 (디바운싱)
+                this.saveTimeout = setTimeout(() => {
+                    try {
+                        localStorage.setItem('smart-todos', JSON.stringify(this.todos));
+                    } catch (error) {
+                        console.error('저장 실패:', error);
+                        this.showToast('저장 실패', 'error');
+                    }
+                }, 300);
+            }
+
+            // Service Worker 등록 (PWA 지원)
+            async initServiceWorker() {
+                if ('serviceWorker' in navigator) {
+                    try {
+                        // Service Worker는 별도 파일이 필요하므로 주석 처리
+                        // await navigator.serviceWorker.register('/sw.js');
+                    } catch (error) {
+                        console.log('Service Worker 등록 실패:', error);
+                    }
+                }
+            }
+
+            // 이벤트 리스너 초기화 (이벤트 위임 사용)
+            initEventListeners() {
+                // 테마 토글 버튼
+                this.elements.themeToggle.addEventListener('click', () => this.toggleTheme());
+
+                // 프로필 이미지 클릭 (필요시 확장 가능)
+                this.elements.profileImage.addEventListener('click', () => {
+                    this.showToast('프로필 사진', 'success');
+                });
+
+                // 추가 버튼
+                this.elements.addBtn.addEventListener('click', () => this.addTodo());
+                
+                // Enter 키로 추가
+                this.elements.input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.addTodo();
+                });
+
+                // 입력 중 버튼 상태 업데이트
+                this.elements.input.addEventListener('input', () => {
+                    const hasValue = this.elements.input.value.trim().length > 0;
+                    this.elements.addBtn.disabled = !hasValue;
+                });
+
+                // 필터 버튼 (이벤트 위임)
+                this.elements.filterBtns.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.setFilter(e.target.dataset.filter);
+                    });
+                });
+
+                // 할일 목록 이벤트 위임
+                this.elements.todoList.addEventListener('click', (e) => {
+                    const todoItem = e.target.closest('.todo-item');
+                    if (!todoItem) return;
+
+                    const id = parseInt(todoItem.dataset.id);
+                    
+                    if (e.target.closest('.checkbox')) {
+                        this.toggleTodo(id);
+                    } else if (e.target.closest('.delete-btn')) {
+                        this.deleteTodo(id);
+                    }
+                });
+
+                // 키보드 단축키
+                document.addEventListener('keydown', (e) => {
+                    // Ctrl/Cmd + K: 입력창 포커스
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                        e.preventDefault();
+                        this.elements.input.focus();
+                    }
+                });
+            }
+
+            // 네트워크 모니터링
+            initNetworkMonitoring() {
+                const updateNetworkStatus = () => {
+                    const indicator = this.elements.networkStatus.querySelector('.status-indicator');
+
+                    if (navigator.onLine) {
+                        this.elements.networkStatus.className = 'network-status online';
+                        indicator.className = 'status-indicator online';
+                        this.elements.networkText.textContent = '온라인';
+                    } else {
+                        this.elements.networkStatus.className = 'network-status offline';
+                        indicator.className = 'status-indicator offline';
+                        this.elements.networkText.textContent = '오프라인 (로컬 저장됨)';
+                    }
+                };
+
+                window.addEventListener('online', () => {
+                    updateNetworkStatus();
+                    this.showToast('온라인 상태로 전환되었습니다', 'success');
+                });
+                
+                window.addEventListener('offline', () => {
+                    updateNetworkStatus();
+                    this.showToast('오프라인 상태입니다', 'error');
+                });
+                
+                updateNetworkStatus();
+            }
+
+            // 할일 추가
+            addTodo() {
+                const text = this.elements.input.value.trim();
+
+                if (!text) {
+                    this.showToast('할일을 입력해주세요!', 'error');
+                    this.elements.input.focus();
+                    return;
+                }
+
+                const todo = {
+                    id: Date.now(),
+                    text: text,
+                    completed: false,
+                    createdAt: new Date().toISOString()
+                };
+
+                this.todos.unshift(todo);
+                this.saveToStorage();
+                this.elements.input.value = '';
+                this.elements.addBtn.disabled = true;
+                this.elements.input.focus();
+                this.render();
+                this.showToast('할일이 추가되었습니다', 'success');
+            }
+
+            // 할일 토글 (완료/미완료)
+            toggleTodo(id) {
+                const todo = this.todos.find(t => t.id === id);
+                if (todo) {
+                    todo.completed = !todo.completed;
+                    this.saveToStorage();
+                    this.render();
+                }
+            }
+
+            // 할일 삭제
+            deleteTodo(id) {
+                const todo = this.todos.find(t => t.id === id);
+                if (!todo) return;
+
+                if (confirm(`"${todo.text}"\n정말 삭제하시겠습니까?`)) {
+                    this.todos = this.todos.filter(t => t.id !== id);
+                    this.saveToStorage();
+                    this.render();
+                    this.showToast('할일이 삭제되었습니다', 'success');
+                }
+            }
+
+            // 필터 설정
+            setFilter(filter) {
+                this.currentFilter = filter;
+                
+                // 필터 버튼 활성화 상태 변경
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.filter === filter) {
+                        btn.classList.add('active');
+                    }
+                });
+
+                this.render();
+            }
+
+            // 필터링된 할일 목록 가져오기
+            getFilteredTodos() {
+                switch (this.currentFilter) {
+                    case 'active':
+                        return this.todos.filter(t => !t.completed);
+                    case 'completed':
+                        return this.todos.filter(t => t.completed);
+                    default:
+                        return this.todos;
+                }
+            }
+
+            // 통계 및 배지 업데이트
+            updateStats() {
+                const total = this.todos.length;
+                const completed = this.todos.filter(t => t.completed).length;
+                const active = total - completed;
+
+                // 통계 업데이트
+                this.elements.totalCount.textContent = total;
+                this.elements.activeCount.textContent = active;
+                this.elements.completedCount.textContent = completed;
+
+                // 배지 업데이트
+                this.elements.badgeAll.textContent = total;
+                this.elements.badgeActive.textContent = active;
+                this.elements.badgeCompleted.textContent = completed;
+            }
+
+            // 화면 렌더링 (이벤트 위임으로 최적화)
+            render() {
+                const filteredTodos = this.getFilteredTodos();
+
+                if (filteredTodos.length === 0) {
+                    this.elements.todoList.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon" aria-hidden="true">📝</div>
+                            <p class="empty-state-text">${this.getEmptyMessage()}</p>
+                        </div>
+                    `;
+                } else {
+                    this.elements.todoList.innerHTML = filteredTodos.map(todo => `
+                        <div class="todo-item ${todo.completed ? 'completed' : ''}" 
+                             data-id="${todo.id}"
+                             role="listitem"
+                             aria-label="${this.escapeHtml(todo.text)}${todo.completed ? ' (완료됨)' : ''}">
+                            <div class="checkbox ${todo.completed ? 'checked' : ''}" 
+                                 role="checkbox"
+                                 aria-checked="${todo.completed}"
+                                 tabindex="0"
+                                 aria-label="${todo.completed ? '완료 취소' : '완료 표시'}">
+                            </div>
+                            <div class="todo-text">${this.escapeHtml(todo.text)}</div>
+                            <button class="delete-btn" 
+                                    aria-label="${this.escapeHtml(todo.text)} 삭제">
+                                삭제
+                            </button>
+                        </div>
+                    `).join('');
+
+                    // 체크박스 키보드 접근성 추가
+                    this.elements.todoList.querySelectorAll('.checkbox').forEach(checkbox => {
+                        checkbox.addEventListener('keypress', (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                checkbox.click();
+                            }
+                        });
+                    });
+                }
+
+                this.updateStats();
+            }
+
+            // 빈 상태 메시지
+            getEmptyMessage() {
+                switch (this.currentFilter) {
+                    case 'active':
+                        return '활성 할일이 없습니다!';
+                    case 'completed':
+                        return '완료된 할일이 없습니다!';
+                    default:
+                        return '할일을 추가해보세요!';
+                }
+            }
+
+            // HTML 이스케이프
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // 토스트 알림 표시
+            showToast(message, type = 'info') {
+                // 기존 토스트 제거
+                const existingToast = document.querySelector('.toast');
+                if (existingToast) {
+                    existingToast.remove();
+                }
+
+                // 새 토스트 생성
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                toast.setAttribute('role', 'alert');
+                toast.setAttribute('aria-live', 'polite');
+                
+                document.body.appendChild(toast);
+
+                // 3초 후 제거
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(20px)';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+        }
+
+        // 앱 시작
+        const app = new TodoApp();
+    </script>
+</body>
+</html>
+HTMLEOF2
+
+echo "HTML file with profile image created successfully!"
