@@ -478,6 +478,102 @@
 
         .color-btn:hover { transform: scale(1.25); }
 
+        /* ── EDIT BUTTON ── */
+        .edit-btn {
+            padding: 3px 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: var(--tr);
+            flex-shrink: 0;
+            font-family: inherit;
+        }
+
+        .edit-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* ── EDIT MODE ── */
+        .todo-item.editing {
+            align-items: flex-start;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            box-shadow: 0 0 0 2px var(--primary);
+        }
+
+        .todo-item.editing .drag-handle,
+        .todo-item.editing .checkbox { margin-top: 4px; }
+
+        .edit-input-text {
+            width: 100%;
+            padding: 5px 8px;
+            border: 2px solid var(--primary);
+            border-radius: 6px;
+            font-size: 13px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+            margin-bottom: 5px;
+            outline: none;
+        }
+
+        .edit-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .edit-input-date {
+            padding: 4px 7px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: inherit;
+            width: 130px;
+            flex-shrink: 0;
+        }
+
+        body.dark-mode .edit-input-text,
+        body.dark-mode .edit-input-date { color-scheme: dark; }
+
+        @media (prefers-color-scheme: dark) {
+            body:not(.light-mode) .edit-input-text,
+            body:not(.light-mode) .edit-input-date { color-scheme: dark; }
+        }
+
+        .edit-save-btn {
+            padding: 4px 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 11px;
+            font-family: inherit;
+            font-weight: 600;
+            transition: var(--tr);
+        }
+
+        .edit-save-btn:hover { opacity: 0.85; }
+
+        .edit-cancel-btn {
+            padding: 4px 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 11px;
+            font-family: inherit;
+            transition: var(--tr);
+        }
+
+        .edit-cancel-btn:hover { border-color: var(--danger); color: var(--danger); }
+
         /* ── DELETE BUTTON ── */
         .delete-btn {
             padding: 3px 9px;
@@ -846,7 +942,8 @@
             this.saveTimer   = null;
             this.theme       = this.loadTheme();
             this.db          = new HistoryDB();
-            this.activeColor = null;   // id of todo whose color picker is open
+            this.activeColor = null;
+            this.editingId   = null;
             this.acIndex     = -1;
             this.acItems     = [];
 
@@ -1097,9 +1194,12 @@
                 const item = e.target.closest('.todo-item');
                 if (!item) return;
                 const id = parseInt(item.dataset.id);
-                if (e.target.closest('.drag-handle')) return;
-                if (e.target.closest('.checkbox'))   { this.toggleTodo(id); return; }
-                if (e.target.closest('.delete-btn')) { this.deleteTodo(id); return; }
+                if (e.target.closest('.drag-handle'))    return;
+                if (e.target.closest('.edit-btn'))       { this.startEdit(id);  return; }
+                if (e.target.closest('.edit-save-btn'))  { this.saveEdit(id);   return; }
+                if (e.target.closest('.edit-cancel-btn')){ this.cancelEdit();   return; }
+                if (e.target.closest('.checkbox'))       { this.toggleTodo(id); return; }
+                if (e.target.closest('.delete-btn'))     { this.deleteTodo(id); return; }
                 if (e.target.closest('.color-btn')) {
                     const btn = e.target.closest('.color-btn');
                     if (this.activeColor === id) this.closeColorPicker();
@@ -1183,6 +1283,48 @@
             this.save();
             this.render();
             this.toast('삭제됨', 'success');
+        }
+
+        /* ── EDIT ── */
+        startEdit(id) {
+            this.editingId = id;
+            this.closeColorPicker();
+            this.render();
+            const todo     = this.todos.find(t => t.id === id);
+            const txtInput = this.el.list.querySelector('.edit-input-text');
+            const dtInput  = this.el.list.querySelector('.edit-input-date');
+            if (txtInput && todo) {
+                txtInput.value = todo.text;
+                txtInput.focus();
+                txtInput.select();
+                txtInput.addEventListener('keydown', e => {
+                    if (e.key === 'Enter')  { e.preventDefault(); this.saveEdit(id); }
+                    if (e.key === 'Escape') this.cancelEdit();
+                });
+            }
+            if (dtInput && todo) dtInput.value = todo.deadline || '';
+        }
+
+        saveEdit(id) {
+            const txtInput = this.el.list.querySelector('.edit-input-text');
+            const dtInput  = this.el.list.querySelector('.edit-input-date');
+            if (!txtInput) return;
+            const newText = txtInput.value.trim();
+            if (!newText) { txtInput.focus(); return; }
+            const todo = this.todos.find(t => t.id === id);
+            if (todo) {
+                todo.text     = newText;
+                todo.deadline = dtInput ? dtInput.value : (todo.deadline || '');
+            }
+            this.editingId = null;
+            this.save();
+            this.render();
+            this.toast('수정됨', 'success');
+        }
+
+        cancelEdit() {
+            this.editingId = null;
+            this.render();
         }
 
         /* ── DRAG & DROP ── */
@@ -1324,14 +1466,27 @@
                     const colorBtnStyle   = t.color ? `background:${t.color};border-color:${t.color}` : '';
                     const colorBtnContent = t.color ? '' : '🎨';
 
+                    const isEditing = this.editingId === t.id;
+                    const contentHtml = isEditing ? `
+                        <div class="todo-content">
+                            <input type="text" class="edit-input-text" maxlength="200" placeholder="할일 내용">
+                            <div class="edit-row">
+                                <input type="date" class="edit-input-date">
+                                <button class="edit-save-btn">저장</button>
+                                <button class="edit-cancel-btn">취소</button>
+                            </div>
+                        </div>` : `
+                        <div class="todo-content">
+                            <div class="todo-text">${this.esc(t.text)}</div>
+                            ${metaHtml}
+                        </div>`;
+
                     return `
-                        <div class="todo-item ${t.completed ? 'completed' : ''}" data-id="${t.id}" draggable="true" style="${itemStyle}">
+                        <div class="todo-item ${t.completed ? 'completed' : ''} ${isEditing ? 'editing' : ''}" data-id="${t.id}" draggable="${!isEditing}" style="${itemStyle}">
                             <div class="drag-handle" title="드래그하여 이동">≡</div>
                             <div class="checkbox ${t.completed ? 'checked' : ''}"></div>
-                            <div class="todo-content">
-                                <div class="todo-text">${this.esc(t.text)}</div>
-                                ${metaHtml}
-                            </div>
+                            ${contentHtml}
+                            ${!isEditing ? `<button class="edit-btn" title="수정">✏️</button>` : ''}
                             <button class="color-btn" style="${colorBtnStyle}" title="색상 선택">${colorBtnContent}</button>
                             <button class="delete-btn">삭제</button>
                         </div>`;
